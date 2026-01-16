@@ -1,0 +1,25 @@
+{
+  "name": "pindou-pattern-generator",
+  "version": "1.0.0",
+  "description": "A professional online Perler bead pattern generator",
+  "main": "pindou.html",
+  "scripts": {
+    "start": "python -m http.server 8080",
+    "dev": "python -m http.server 3000"
+  },
+  "keywords": [
+    "perler",
+    "bead",
+    "pattern",
+    "generator",
+    "craft",
+    "diy"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "homepage": "https://your-project-name.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/pindou-pattern-generator.git"
+  }
+}

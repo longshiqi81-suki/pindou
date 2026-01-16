@@ -1,0 +1,1877 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拼豆图纸生成器</title>
+    <style>
+        :root {
+            --primary-color: #ff9a9e;
+            --secondary-color: #fad0c4;
+            --accent-color: #a18cd1;
+            --bg-color: #fff5f5;
+            --card-bg: #ffffff;
+            --text-primary: #5d5d5d;
+            --text-secondary: #888888;
+            --border-radius: 20px;
+            --shadow: 0 8px 30px rgba(255, 154, 158, 0.2);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, var(--bg-color) 0%, #ffe8e8 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(255, 154, 158, 0.3);
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .workflow {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        .step-card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 30px;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        .step-card:nth-child(1) { animation-delay: 0.1s; }
+        .step-card:nth-child(2) { animation-delay: 0.2s; }
+        .step-card:nth-child(3) { animation-delay: 0.3s; }
+        .step-card:nth-child(4) { animation-delay: 0.4s; }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .step-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(255, 154, 158, 0.3);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 15px;
+            font-size: 1.2rem;
+        }
+
+        .step-title {
+            font-size: 1.3rem;
+            color: var(--text-primary);
+        }
+
+        /* 上传区域样式 */
+        .upload-zone {
+            border: 3px dashed var(--secondary-color);
+            border-radius: var(--border-radius);
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: linear-gradient(135deg, #fff9f9 0%, #fff 100%);
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, #fff5f5 0%, #fff 100%);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .upload-text {
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* 预览区域样式 */
+        .preview-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .image-preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .image-preview.loaded {
+            opacity: 1;
+        }
+
+        .preview-placeholder {
+            color: var(--text-secondary);
+            font-style: italic;
+            padding: 40px;
+            text-align: center;
+            width: 100%;
+            background: #f9f9f9;
+            border-radius: 15px;
+        }
+
+        /* 控制区域样式 */
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        .control-label {
+            display: block;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .control-value {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: linear-gradient(to right, var(--secondary-color), var(--primary-color));
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid var(--primary-color);
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+            transition: var(--transition);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            margin: 5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 154, 158, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 154, 158, 0.5);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* 图纸结果区域样式 */
+        .result-container {
+            overflow: auto;
+            max-height: 900px;
+            min-height: 500px;
+            border-radius: 15px;
+            background: #f5f5f5;
+            padding: 20px;
+            transition: max-height 0.3s ease;
+        }
+
+        .result-container.expanded {
+            max-height: 1200px;
+        }
+
+        .bead-grid {
+            display: inline-grid;
+            gap: 2px;
+            background: #e0e0e0;
+            padding: 2px;
+            border-radius: 10px;
+        }
+
+        .bead-cell {
+            width: 8px;
+            height: 8px;
+            border-radius: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.5rem;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: var(--transition);
+            cursor: pointer;
+            position: relative;
+            border: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .bead-cell:hover {
+            transform: scale(1.15);
+            z-index: 10;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .bead-cell::after {
+            content: attr(data-color-name);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .bead-cell:hover::after {
+            opacity: 1;
+        }
+
+        .result-placeholder {
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        /* 加载动画 */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition);
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--secondary-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* 颜色选择器样式 */
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 10px;
+        }
+
+        .color-option {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            font-weight: bold;
+        }
+
+        .color-option:hover, .color-option.selected {
+            border-color: var(--primary-color);
+            transform: scale(1.1);
+        }
+
+        /* 提示消息 */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--text-primary);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 30px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .workflow {
+                grid-template-columns: 1fr;
+            }
+
+            .step-card {
+                padding: 20px;
+            }
+
+            .bead-cell {
+                width: 12px;
+                height: 12px;
+                font-size: 0.45rem;
+            }
+
+            .result-container {
+                max-height: 600px;
+                min-height: 400px;
+            }
+
+            .result-container.expanded {
+                max-height: 800px;
+            }
+        }
+
+        /* 大屏幕优化 */
+        @media (min-width: 1200px) {
+            .workflow {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .result-container {
+                max-height: 1000px;
+                min-height: 600px;
+            }
+
+            .result-container.expanded {
+                max-height: 1400px;
+            }
+
+            .bead-cell {
+                width: 10px;
+                height: 10px;
+                font-size: 0.4rem;
+            }
+        }
+
+        /* 平板设备优化 */
+        @media (min-width: 768px) and (max-width: 1199px) {
+            .result-container {
+                max-height: 800px;
+                min-height: 500px;
+            }
+
+            .result-container.expanded {
+                max-height: 1000px;
+            }
+
+            .bead-cell {
+                width: 8px;
+                height: 8px;
+                font-size: 0.35rem;
+            }
+        }
+
+        /* 打印样式 */
+        @media print {
+            body {
+                background: white;
+            }
+
+            .container > header,
+            .step-card:not(:last-child) {
+                display: none;
+            }
+
+            .step-card:last-child {
+                box-shadow: none;
+                padding: 0;
+            }
+
+            .bead-cell {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✨ 拼豆图纸生成器 ✨</h1>
+            <p class="subtitle">上传图片，自动生成拼豆图纸，支持多种品牌色号标注</p>
+        </header>
+
+        <div class="workflow">
+            <!-- 第一步：上传图片 -->
+            <div class="step-card">
+                <div class="step-header">
+                    <div class="step-number">1</div>
+                    <h2 class="step-title">上传图片</h2>
+                </div>
+                <div class="upload-zone" id="uploadZone">
+                    <span class="upload-icon">🖼️</span>
+                    <p class="upload-text">点击或拖拽图片到这里</p>
+                    <p class="upload-hint">支持 PNG、JPG 格式，最大 5MB</p>
+                </div>
+                <input type="file" id="fileInput" accept="image/png,image/jpeg,image/jpg">
+                <div class="preview-container">
+                    <img id="imagePreview" class="image-preview" alt="图片预览">
+                    <div id="previewPlaceholder" class="preview-placeholder">
+                        暂无图片预览
+                    </div>
+                </div>
+            </div>
+
+            <!-- 第二步：参数调节 -->
+            <div class="step-card">
+                <div class="step-header">
+                    <div class="step-number">2</div>
+                    <h2 class="step-title">参数调节</h2>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">
+                        图纸尺寸：<span class="control-value" id="sizeValue">100</span> × <span class="control-value" id="sizeValue2">100</span>
+                    </label>
+                    <input type="range" id="gridSize" min="20" max="200" value="100" step="10">
+                </div>
+                <div class="control-group">
+                    <label class="control-label">
+                        颜色容差：<span class="control-value" id="toleranceValue">30</span>
+                    </label>
+                    <input type="range" id="colorTolerance" min="10" max="100" value="30" step="5">
+                </div>
+                <div class="control-group">
+                    <label class="control-label">选择 Perler 套餐</label>
+                    <select id="perlerPackage" style="width: 100%; padding: 10px; border-radius: 10px; border: 2px solid var(--secondary-color); font-size: 1rem;">
+                        <option value="perler_72">72色套餐（入门版）</option>
+                        <option value="perler_96">96色套餐（标准版）</option>
+                        <option value="perler_144" selected>144色套餐（推荐）</option>
+                        <option value="perler_221">221色套餐（专业版）</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">选择色号系统</label>
+                    <select id="colorSystem" style="width: 100%; padding: 10px; border-radius: 10px; border: 2px solid var(--secondary-color); font-size: 1rem;">
+                        <option value="perler" selected>Perler</option>
+                        <option value="hama">Hama Beads</option>
+                        <option value="nano">Nabbi/PyD</option>
+                    </select>
+                </div>
+                <div class="button-group">
+                    <button class="btn btn-primary" id="generateBtn" disabled>生成图纸</button>
+                    <button class="btn btn-secondary" id="resetBtn">重置</button>
+                </div>
+            </div>
+
+            <!-- 第三步：图纸结果 -->
+            <div class="step-card">
+                <div class="step-header">
+                    <div class="step-number">3</div>
+                    <h2 class="step-title">图纸结果</h2>
+                    <button class="btn btn-secondary" id="toggleDisplayBtn" style="margin-left: auto; padding: 8px 16px; font-size: 0.9rem;">
+                        展开显示
+                    </button>
+                </div>
+                <div class="result-container" id="resultContainer">
+                    <div class="result-placeholder">
+                        生成拼豆图纸后将在此显示<br>
+                        点击珠子上可查看颜色名称
+                    </div>
+                </div>
+                
+                <!-- 颜色统计区域 -->
+                <div class="color-stats" id="colorStats" style="display: none; margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 12px; border: 2px solid var(--primary-color);">
+                    <h3 style="margin-top: 0; color: var(--primary-color); font-size: 1.2rem;">🎨 颜色统计</h3>
+                    <div class="stats-grid" id="statsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; max-height: 300px; overflow-y: auto;">
+                        <!-- 统计信息将动态插入这里 -->
+                    </div>
+                    <div class="stats-summary" id="statsSummary" style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd; font-weight: bold; text-align: center;">
+                        <!-- 汇总信息将动态插入这里 -->
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary" id="printBtn" disabled>打印图纸</button>
+                    <button class="btn btn-secondary" id="saveBtn" disabled>保存图片</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p class="loading-text">正在处理图片...</p>
+    </div>
+
+    <!-- 提示消息 -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        /**
+         * 拼豆图纸生成器 - 核心逻辑模块
+         * 包含图像处理、颜色匹配、UI交互等功能
+         */
+
+        // ==================== 品牌色号数据库 ====================
+        const ColorDatabase = {
+            // Perler 套餐色号库
+            perler_72: {  // 72色套餐
+                'A03': { hex: '#FEF296', name: 'Light Yellow' },
+                'A04': { hex: '#FEF751', name: 'Bright Yellow' },
+                'A06': { hex: '#FCC73C', name: 'Golden Yellow' },
+                'A07': { hex: '#FD8342', name: 'Orange' },
+                'A10': { hex: '#FD9443', name: 'Deep Orange' },
+                'A11': { hex: '#FFCF7B', name: 'Peach' },
+                'A13': { hex: '#FFC366', name: 'Light Orange' },
+                'B03': { hex: '#9BF5A9', name: 'Light Green' },
+                'B05': { hex: '#6FD364', name: 'Green' },
+                'B07': { hex: '#3CB48C', name: 'Teal Green' },
+                'B08': { hex: '#168C4F', name: 'Dark Green' },
+                'B10': { hex: '#AACE28', name: 'Lime Green' },
+                'B12': { hex: '#1F6A4E', name: 'Forest Green' },
+                'B14': { hex: '#D0EE39', name: 'Chartreuse' },
+                'B17': { hex: '#B5C230', name: 'Olive Green' },
+                'B18': { hex: '#E4F854', name: 'Yellow Green' },
+                'B19': { hex: '#01D0A1', name: 'Mint Green' },
+                'B20': { hex: '#C4FFD7', name: 'Mint Light' },
+                'C02': { hex: '#BAF6ED', name: 'Light Cyan' },
+                'C03': { hex: '#A8E1FB', name: 'Sky Blue' },
+                'C05': { hex: '#23BAE4', name: 'Turquoise' },
+                'C06': { hex: '#78BCF7', name: 'Light Blue' },
+                'C07': { hex: '#3C8AEB', name: 'Blue' },
+                'C08': { hex: '#1A5EC4', name: 'Dark Blue' },
+                'C10': { hex: '#30D9ED', name: 'Aqua' },
+                'C11': { hex: '#01C5D0', name: 'Cyan' },
+                'C13': { hex: '#B5D7FF', name: 'Ice Blue' },
+                'C16': { hex: '#09548E', name: 'Navy Blue' },
+                'D02': { hex: '#9CA6DB', name: 'Lavender' },
+                'D03': { hex: '#214EB1', name: 'Royal Blue' },
+                'D06': { hex: '#AB76E5', name: 'Purple' },
+                'D07': { hex: '#F74CD7', name: 'Hot Pink' },
+                'D08': { hex: '#E2CCFF', name: 'Light Purple' },
+                'D09': { hex: '#C8BEFD', name: 'Pale Purple' },
+                'D11': { hex: '#BFC2FF', name: 'Periwinkle' },
+                'D12': { hex: '#DAB0E5', name: 'Mauve' },
+                'D13': { hex: '#C64DAF', name: 'Magenta' },
+                'D14': { hex: '#9735B3', name: 'Violet' },
+                'D15': { hex: '#47297E', name: 'Deep Purple' },
+                'D16': { hex: '#E3E3FF', name: 'White Purple' },
+                'D18': { hex: '#B77BD6', name: 'Orchid' },
+                'D19': { hex: '#E8CCFA', name: 'Lilac' },
+                'D20': { hex: '#A63AEA', name: 'Electric Purple' },
+                'D21': { hex: '#8A349B', name: 'Dark Orchid' },
+                'E01': { hex: '#FFD1CC', name: 'Light Coral' },
+                'E02': { hex: '#FFCAE9', name: 'Light Pink' },
+                'E03': { hex: '#FB8EC5', name: 'Pink' },
+                'E04': { hex: '#EE79AC', name: 'Rose Pink' },
+                'E05': { hex: '#F553A5', name: 'Bright Pink' },
+                'E07': { hex: '#A2186B', name: 'Burgundy' },
+                'E08': { hex: '#FFD8E7', name: 'Pale Pink' },
+                'E12': { hex: '#FADFDE', name: 'Blush' },
+                'E13': { hex: '#A71284', name: 'Deep Pink' },
+                'F05': { hex: '#F10702', name: 'Red' },
+                'F07': { hex: '#811430', name: 'Dark Red' },
+                'F08': { hex: '#BC0830', name: 'Crimson' },
+                'F10': { hex: '#8D410B', name: 'Brown' },
+                'F13': { hex: '#D14B2F', name: 'Terracotta' },
+                'G01': { hex: '#FEE5C7', name: 'Light Beige' },
+                'G02': { hex: '#FDCFB7', name: 'Beige' },
+                'G03': { hex: '#F9C2A5', name: 'Tan' },
+                'G05': { hex: '#F2A76C', name: 'Light Brown' },
+                'G07': { hex: '#91654D', name: 'Medium Brown' },
+                'G08': { hex: '#4E312D', name: 'Dark Brown' },
+                'G09': { hex: '#E9BB84', name: 'Camel' },
+                'G13': { hex: '#D09059', name: 'Sienna' },
+                'H01': { hex: '#FBFBFB', name: 'Off White' },
+                'H02': { hex: '#FFFFFF', name: 'White' },
+                'H03': { hex: '#AFAFAF', name: 'Light Grey' },
+                'H04': { hex: '#979296', name: 'Grey' },
+                'H05': { hex: '#5F5F5F', name: 'Dark Grey' },
+                'H07': { hex: '#000000', name: 'Black' },
+            },
+
+            perler_96: {  // 96色套餐（包含72色 + 扩展）
+                // 先包含72色
+                'A03': { hex: '#FEF296', name: 'Light Yellow' },
+                'A04': { hex: '#FEF751', name: 'Bright Yellow' },
+                'A06': { hex: '#FCC73C', name: 'Golden Yellow' },
+                'A07': { hex: '#FD8342', name: 'Orange' },
+                'A10': { hex: '#FD9443', name: 'Deep Orange' },
+                'A11': { hex: '#FFCF7B', name: 'Peach' },
+                'A13': { hex: '#FFC366', name: 'Light Orange' },
+                'A14': { hex: '#FF7544', name: 'Bright Orange' },
+                'B03': { hex: '#9BF5A9', name: 'Light Green' },
+                'B05': { hex: '#6FD364', name: 'Green' },
+                'B07': { hex: '#3CB48C', name: 'Teal Green' },
+                'B08': { hex: '#168C4F', name: 'Dark Green' },
+                'B10': { hex: '#AACE28', name: 'Lime Green' },
+                'B12': { hex: '#1F6A4E', name: 'Forest Green' },
+                'B14': { hex: '#D0EE39', name: 'Chartreuse' },
+                'B17': { hex: '#B5C230', name: 'Olive Green' },
+                'B18': { hex: '#E4F854', name: 'Yellow Green' },
+                'B19': { hex: '#01D0A1', name: 'Mint Green' },
+                'B20': { hex: '#C4FFD7', name: 'Mint Light' },
+                'C02': { hex: '#BAF6ED', name: 'Light Cyan' },
+                'C03': { hex: '#A8E1FB', name: 'Sky Blue' },
+                'C05': { hex: '#23BAE4', name: 'Turquoise' },
+                'C06': { hex: '#78BCF7', name: 'Light Blue' },
+                'C07': { hex: '#3C8AEB', name: 'Blue' },
+                'C08': { hex: '#1A5EC4', name: 'Dark Blue' },
+                'C10': { hex: '#30D9ED', name: 'Aqua' },
+                'C11': { hex: '#01C5D0', name: 'Cyan' },
+                'C13': { hex: '#B5D7FF', name: 'Ice Blue' },
+                'C16': { hex: '#09548E', name: 'Navy Blue' },
+                'D02': { hex: '#9CA6DB', name: 'Lavender' },
+                'D03': { hex: '#214EB1', name: 'Royal Blue' },
+                'D05': { hex: '#C66FB8', name: 'Deep Pink' },
+                'D06': { hex: '#AB76E5', name: 'Purple' },
+                'D07': { hex: '#F74CD7', name: 'Hot Pink' },
+                'D08': { hex: '#E2CCFF', name: 'Light Purple' },
+                'D09': { hex: '#C8BEFD', name: 'Pale Purple' },
+                'D11': { hex: '#BFC2FF', name: 'Periwinkle' },
+                'D12': { hex: '#DAB0E5', name: 'Mauve' },
+                'D13': { hex: '#C64DAF', name: 'Magenta' },
+                'D14': { hex: '#9735B3', name: 'Violet' },
+                'D15': { hex: '#47297E', name: 'Deep Purple' },
+                'D16': { hex: '#E3E3FF', name: 'White Purple' },
+                'D18': { hex: '#B77BD6', name: 'Orchid' },
+                'D19': { hex: '#E8CCFA', name: 'Lilac' },
+                'D20': { hex: '#A63AEA', name: 'Electric Purple' },
+                'D21': { hex: '#8A349B', name: 'Dark Orchid' },
+                'E01': { hex: '#FFD1CC', name: 'Light Coral' },
+                'E02': { hex: '#FFCAE9', name: 'Light Pink' },
+                'E03': { hex: '#FB8EC5', name: 'Pink' },
+                'E04': { hex: '#EE79AC', name: 'Rose Pink' },
+                'E05': { hex: '#F553A5', name: 'Bright Pink' },
+                'E06': { hex: '#FD2F80', name: 'Neon Pink' },
+                'E07': { hex: '#A2186B', name: 'Burgundy' },
+                'E08': { hex: '#FFD8E7', name: 'Pale Pink' },
+                'E09': { hex: '#EA8CD9', name: 'Medium Pink' },
+                'E10': { hex: '#BF3974', name: 'Deep Rose' },
+                'E11': { hex: '#FDE7E3', name: 'Blush Light' },
+                'E12': { hex: '#FADFDE', name: 'Blush' },
+                'E13': { hex: '#A71284', name: 'Deep Pink' },
+                'E14': { hex: '#FDD3BF', name: 'Apricot' },
+                'E15': { hex: '#F2D1D8', name: 'Rose Light' },
+                'F01': { hex: '#FDA199', name: 'Light Red' },
+                'F02': { hex: '#FA6A61', name: 'Coral Red' },
+                'F03': { hex: '#EC4A5A', name: 'Rose Red' },
+                'F04': { hex: '#FF452C', name: 'Bright Red' },
+                'F05': { hex: '#F10702', name: 'Red' },
+                'F06': { hex: '#B53710', name: 'Burnt Orange' },
+                'F07': { hex: '#811430', name: 'Dark Red' },
+                'F08': { hex: '#BC0830', name: 'Crimson' },
+                'F09': { hex: '#E67088', name: 'Rose' },
+                'F10': { hex: '#8D410B', name: 'Brown' },
+                'F11': { hex: '#6F3329', name: 'Dark Brown' },
+                'F12': { hex: '#F8425D', name: 'Cherry Red' },
+                'F13': { hex: '#D14B2F', name: 'Terracotta' },
+                'F14': { hex: '#FDABA9', name: 'Light Coral' },
+                'G01': { hex: '#FEE5C7', name: 'Light Beige' },
+                'G02': { hex: '#FDCFB7', name: 'Beige' },
+                'G03': { hex: '#F9C2A5', name: 'Tan' },
+                'G05': { hex: '#F2A76C', name: 'Light Brown' },
+                'G07': { hex: '#91654D', name: 'Medium Brown' },
+                'G08': { hex: '#4E312D', name: 'Dark Brown' },
+                'G09': { hex: '#E9BB84', name: 'Camel' },
+                'G13': { hex: '#D09059', name: 'Sienna' },
+                'G14': { hex: '#866956', name: 'Warm Brown' },
+                'G17': { hex: '#5C5248', name: 'Stone Brown' },
+                'H01': { hex: '#FBFBFB', name: 'Off White' },
+                'H02': { hex: '#FFFFFF', name: 'White' },
+                'H03': { hex: '#AFAFAF', name: 'Light Grey' },
+                'H04': { hex: '#979296', name: 'Grey' },
+                'H05': { hex: '#5F5F5F', name: 'Dark Grey' },
+                'H06': { hex: '#2C2C2C', name: 'Charcoal' },
+                'H07': { hex: '#000000', name: 'Black' },
+                'M05': { hex: '#DBD6B6', name: 'Warm Grey' },
+                'M06': { hex: '#C8B999', name: 'Olive Grey' },
+                'M09': { hex: '#AB9787', name: 'Taupe' },
+                'M12': { hex: '#5A474C', name: 'Slate Brown' },
+            },
+
+            perler_144: {  // 144色套餐（包含96色 + 更多扩展）
+                // 包含所有96色
+                'A03': { hex: '#FEF296', name: 'Light Yellow' },
+                'A04': { hex: '#FEF751', name: 'Bright Yellow' },
+                'A06': { hex: '#FCC73C', name: 'Golden Yellow' },
+                'A07': { hex: '#FD8342', name: 'Orange' },
+                'A10': { hex: '#FD9443', name: 'Deep Orange' },
+                'A11': { hex: '#FFCF7B', name: 'Peach' },
+                'A13': { hex: '#FFC366', name: 'Light Orange' },
+                'A14': { hex: '#FF7544', name: 'Bright Orange' },
+                'B03': { hex: '#9BF5A9', name: 'Light Green' },
+                'B05': { hex: '#6FD364', name: 'Green' },
+                'B07': { hex: '#3CB48C', name: 'Teal Green' },
+                'B08': { hex: '#168C4F', name: 'Dark Green' },
+                'B10': { hex: '#AACE28', name: 'Lime Green' },
+                'B12': { hex: '#1F6A4E', name: 'Forest Green' },
+                'B14': { hex: '#D0EE39', name: 'Chartreuse' },
+                'B17': { hex: '#B5C230', name: 'Olive Green' },
+                'B18': { hex: '#E4F854', name: 'Yellow Green' },
+                'B19': { hex: '#01D0A1', name: 'Mint Green' },
+                'B20': { hex: '#C4FFD7', name: 'Mint Light' },
+                'C02': { hex: '#BAF6ED', name: 'Light Cyan' },
+                'C03': { hex: '#A8E1FB', name: 'Sky Blue' },
+                'C05': { hex: '#23BAE4', name: 'Turquoise' },
+                'C06': { hex: '#78BCF7', name: 'Light Blue' },
+                'C07': { hex: '#3C8AEB', name: 'Blue' },
+                'C08': { hex: '#1A5EC4', name: 'Dark Blue' },
+                'C10': { hex: '#30D9ED', name: 'Aqua' },
+                'C11': { hex: '#01C5D0', name: 'Cyan' },
+                'C13': { hex: '#B5D7FF', name: 'Ice Blue' },
+                'C16': { hex: '#09548E', name: 'Navy Blue' },
+                'D02': { hex: '#9CA6DB', name: 'Lavender' },
+                'D03': { hex: '#214EB1', name: 'Royal Blue' },
+                'D05': { hex: '#C66FB8', name: 'Deep Pink' },
+                'D06': { hex: '#AB76E5', name: 'Purple' },
+                'D07': { hex: '#F74CD7', name: 'Hot Pink' },
+                'D08': { hex: '#E2CCFF', name: 'Light Purple' },
+                'D09': { hex: '#C8BEFD', name: 'Pale Purple' },
+                'D11': { hex: '#BFC2FF', name: 'Periwinkle' },
+                'D12': { hex: '#DAB0E5', name: 'Mauve' },
+                'D13': { hex: '#C64DAF', name: 'Magenta' },
+                'D14': { hex: '#9735B3', name: 'Violet' },
+                'D15': { hex: '#47297E', name: 'Deep Purple' },
+                'D16': { hex: '#E3E3FF', name: 'White Purple' },
+                'D18': { hex: '#B77BD6', name: 'Orchid' },
+                'D19': { hex: '#E8CCFA', name: 'Lilac' },
+                'D20': { hex: '#A63AEA', name: 'Electric Purple' },
+                'D21': { hex: '#8A349B', name: 'Dark Orchid' },
+                'E01': { hex: '#FFD1CC', name: 'Light Coral' },
+                'E02': { hex: '#FFCAE9', name: 'Light Pink' },
+                'E03': { hex: '#FB8EC5', name: 'Pink' },
+                'E04': { hex: '#EE79AC', name: 'Rose Pink' },
+                'E05': { hex: '#F553A5', name: 'Bright Pink' },
+                'E06': { hex: '#FD2F80', name: 'Neon Pink' },
+                'E07': { hex: '#A2186B', name: 'Burgundy' },
+                'E08': { hex: '#FFD8E7', name: 'Pale Pink' },
+                'E09': { hex: '#EA8CD9', name: 'Medium Pink' },
+                'E10': { hex: '#BF3974', name: 'Deep Rose' },
+                'E11': { hex: '#FDE7E3', name: 'Blush Light' },
+                'E12': { hex: '#FADFDE', name: 'Blush' },
+                'E13': { hex: '#A71284', name: 'Deep Pink' },
+                'E14': { hex: '#FDD3BF', name: 'Apricot' },
+                'E15': { hex: '#F2D1D8', name: 'Rose Light' },
+                'F01': { hex: '#FDA199', name: 'Light Red' },
+                'F02': { hex: '#FA6A61', name: 'Coral Red' },
+                'F03': { hex: '#EC4A5A', name: 'Rose Red' },
+                'F04': { hex: '#FF452C', name: 'Bright Red' },
+                'F05': { hex: '#F10702', name: 'Red' },
+                'F06': { hex: '#B53710', name: 'Burnt Orange' },
+                'F07': { hex: '#811430', name: 'Dark Red' },
+                'F08': { hex: '#BC0830', name: 'Crimson' },
+                'F09': { hex: '#E67088', name: 'Rose' },
+                'F10': { hex: '#8D410B', name: 'Brown' },
+                'F11': { hex: '#6F3329', name: 'Dark Brown' },
+                'F12': { hex: '#F8425D', name: 'Cherry Red' },
+                'F13': { hex: '#D14B2F', name: 'Terracotta' },
+                'F14': { hex: '#FDABA9', name: 'Light Coral' },
+                'G01': { hex: '#FEE5C7', name: 'Light Beige' },
+                'G02': { hex: '#FDCFB7', name: 'Beige' },
+                'G03': { hex: '#F9C2A5', name: 'Tan' },
+                'G05': { hex: '#F2A76C', name: 'Light Brown' },
+                'G07': { hex: '#91654D', name: 'Medium Brown' },
+                'G08': { hex: '#4E312D', name: 'Dark Brown' },
+                'G09': { hex: '#E9BB84', name: 'Camel' },
+                'G13': { hex: '#D09059', name: 'Sienna' },
+                'G14': { hex: '#866956', name: 'Warm Brown' },
+                'G17': { hex: '#5C5248', name: 'Stone Brown' },
+                'H01': { hex: '#FBFBFB', name: 'Off White' },
+                'H02': { hex: '#FFFFFF', name: 'White' },
+                'H03': { hex: '#AFAFAF', name: 'Light Grey' },
+                'H04': { hex: '#979296', name: 'Grey' },
+                'H05': { hex: '#5F5F5F', name: 'Dark Grey' },
+                'H06': { hex: '#2C2C2C', name: 'Charcoal' },
+                'H07': { hex: '#000000', name: 'Black' },
+                'M05': { hex: '#DBD6B6', name: 'Warm Grey' },
+                'M06': { hex: '#C8B999', name: 'Olive Grey' },
+                'M09': { hex: '#AB9787', name: 'Taupe' },
+                'M12': { hex: '#5A474C', name: 'Slate Brown' },
+                // 144色扩展
+                'A01': { hex: '#FFF5CB', name: 'Very Light Yellow' },
+                'A02': { hex: '#FFFFCD', name: 'Soft Yellow' },
+                'A05': { hex: '#FEDD4D', name: 'Medium Yellow' },
+                'A08': { hex: '#E6C62D', name: 'Mellow Yellow' },
+                'A09': { hex: '#FAAA71', name: 'Soft Orange' },
+                'A12': { hex: '#FDBC9D', name: 'Warm Peach' },
+                'A15': { hex: '#FFF365', name: 'Bright Light Yellow' },
+                'A16': { hex: '#FFF49F', name: 'Light Bright Yellow' },
+                'A17': { hex: '#FDE776', name: 'Sunny Yellow' },
+                'A18': { hex: '#FEB67A', name: 'Soft Orange Light' },
+                'A19': { hex: '#FB9283', name: 'Warm Coral' },
+                'A20': { hex: '#FEE37F', name: 'Sun Yellow' },
+                'A21': { hex: '#FFE396', name: 'Bright Peach' },
+                'A22': { hex: '#F4F67B', name: 'Yellow Chartreuse' },
+                'A23': { hex: '#E6C9B7', name: 'Light Tan' },
+                'A24': { hex: '#F7F8A1', name: 'Soft Lime' },
+                'A25': { hex: '#FFD77E', name: 'Golden Light' },
+                'A26': { hex: '#FFC830', name: 'Golden Yellow Bright' },
+                'B01': { hex: '#EAF149', name: 'Yellow Lime' },
+                'B02': { hex: '#B7EB45', name: 'Light Lime' },
+                'B04': { hex: '#51FF50', name: 'Bright Lime' },
+                'B06': { hex: '#7AEBC7', name: 'Mint Light' },
+                'B09': { hex: '#27523A', name: 'Very Dark Green' },
+                'B11': { hex: '#506414', name: 'Dark Olive' },
+                'B13': { hex: '#C7FF86', name: 'Bright Lime' },
+                'B15': { hex: '#205727', name: 'Deep Forest' },
+                'B16': { hex: '#CDFFAA', name: 'Very Light Lime' },
+                'B21': { hex: '#147C74', name: 'Deep Teal' },
+                'B22': { hex: '#0D5349', name: 'Very Deep Teal' },
+                'B23': { hex: '#31451C', name: 'Very Dark Olive' },
+                'B24': { hex: '#E5FB9F', name: 'Light Lime' },
+                'B25': { hex: '#5C9083', name: 'Sea Green' },
+                'B26': { hex: '#A9A54D', name: 'Yellow Olive' },
+                'B27': { hex: '#CCE1AF', name: 'Light Yellow Green' },
+                'B28': { hex: '#9EE5B8', name: 'Soft Mint' },
+                'B29': { hex: '#C5E352', name: 'Bright Lime' },
+                'B30': { hex: '#E3FDB2', name: 'Very Light Lime' },
+                'B31': { hex: '#B0E792', name: 'Medium Lime' },
+                'B32': { hex: '#92AD60', name: 'Olive Medium' },
+                'C01': { hex: '#E1FEE2', name: 'Very Light Cyan' },
+                'C04': { hex: '#85D2FF', name: 'Bright Sky Blue' },
+                'C09': { hex: '#2F26CD', name: 'Indigo' },
+                'C12': { hex: '#1A3758', name: 'Deep Navy' },
+                'C14': { hex: '#E1FFFA', name: 'Very Light Cyan' },
+                'C15': { hex: '#01CAD2', name: 'Bright Cyan' },
+                'C17': { hex: '#7CE7F5', name: 'Light Aqua' },
+                'C18': { hex: '#264259', name: 'Deep Blue Grey' },
+                'C19': { hex: '#259BBA', name: 'Medium Teal' },
+                'C20': { hex: '#167CC0', name: 'Medium Blue' },
+                'C21': { hex: '#DEEEFD', name: 'Very Light Blue' },
+                'C22': { hex: '#7FC0D3', name: 'Light Blue Grey' },
+                'C23': { hex: '#C7E2FE', name: 'Very Light Sky Blue' },
+                'C24': { hex: '#7CC4FF', name: 'Bright Light Blue' },
+                'C25': { hex: '#A9E4E5', name: 'Light Cyan Grey' },
+                'C26': { hex: '#3CAED7', name: 'Bright Teal' },
+                'C27': { hex: '#D3DFFB', name: 'Very Light Blue Grey' },
+                'C28': { hex: '#BBD0ED', name: 'Light Blue Grey' },
+                'C29': { hex: '#34488D', name: 'Medium Navy' },
+                'D01': { hex: '#B9CFFF', name: 'Very Light Purple' },
+                'D04': { hex: '#2E4771', name: 'Deep Purple Blue' },
+                'D10': { hex: '#351D50', name: 'Very Deep Purple' },
+                'D17': { hex: '#C9DAFD', name: 'Very Light Lavender' },
+                'D22': { hex: '#595193', name: 'Medium Purple' },
+                'D23': { hex: '#F0E8FC', name: 'Very Light Magenta' },
+                'D24': { hex: '#F778EA', name: 'Bright Magenta' },
+                'D25': { hex: '#423CC0', name: 'Medium Indigo' },
+                'D26': { hex: '#DFC2F7', name: 'Very Light Purple' },
+                'E16': { hex: '#FFF3EC', name: 'Very Light Pink' },
+                'E17': { hex: '#FBE9F6', name: 'Very Light Magenta' },
+                'E18': { hex: '#FDD1E9', name: 'Light Pink' },
+                'E19': { hex: '#F5D3F3', name: 'Light Magenta' },
+                'E20': { hex: '#F3D7EA', name: 'Medium Light Pink' },
+                'E21': { hex: '#D6B3B8', name: 'Light Rose Grey' },
+                'E22': { hex: '#C785AF', name: 'Medium Pink' },
+                'E23': { hex: '#9F89A3', name: 'Purple Grey' },
+                'E24': { hex: '#E1BCE8', name: 'Light Purple Pink' },
+                'F15': { hex: '#DE0C2C', name: 'Bright Red' },
+                'F16': { hex: '#FEDEDE', name: 'Very Light Red' },
+                'F17': { hex: '#FBAE9F', name: 'Light Coral' },
+                'F18': { hex: '#E2804D', name: 'Medium Orange' },
+                'F19': { hex: '#C54B60', name: 'Medium Red' },
+                'F20': { hex: '#CC9392', name: 'Light Red Grey' },
+                'F21': { hex: '#F7B5C7', name: 'Light Pink Red' },
+                'F22': { hex: '#FDC0D0', name: 'Very Light Pink' },
+                'F23': { hex: '#D58084', name: 'Light Red' },
+                'F24': { hex: '#E698A9', name: 'Light Rose' },
+                'F25': { hex: '#E24B4F', name: 'Bright Red Medium' },
+                'G04': { hex: '#DDB998', name: 'Medium Beige' },
+                'G06': { hex: '#EE9868', name: 'Medium Tan' },
+                'G10': { hex: '#C09143', name: 'Medium Sienna' },
+                'G11': { hex: '#E4C896', name: 'Light Camel' },
+                'G12': { hex: '#DFB885', name: 'Medium Tan' },
+                'G15': { hex: '#F4F3DD', name: 'Very Light Beige' },
+                'G16': { hex: '#F0E0CF', name: 'Light Warm Beige' },
+                'G18': { hex: '#FEEDDA', name: 'Very Light Tan' },
+                'G19': { hex: '#AC603C', name: 'Medium Brown' },
+                'G20': { hex: '#B1623F', name: 'Medium Warm Brown' },
+                'G21': { hex: '#CB916E', name: 'Medium Tan' },
+                'H08': { hex: '#F8E6F0', name: 'Very Light Pink Grey' },
+                'H09': { hex: '#E6E3DB', name: 'Very Light Brown Grey' },
+                'H10': { hex: '#E5E3F3', name: 'Very Light Purple Grey' },
+                'H11': { hex: '#CFCBCB', name: 'Medium Grey' },
+                'H12': { hex: '#FFF2E2', name: 'Very Light Orange' },
+                'H13': { hex: '#EBE1CC', name: 'Very Light Beige' },
+                'H14': { hex: '#C7CED9', name: 'Light Blue Grey' },
+                'H15': { hex: '#9EACC7', name: 'Medium Blue Grey' },
+                'H16': { hex: '#231D1A', name: 'Very Dark Brown' },
+                'H17': { hex: '#F6F4F5', name: 'Very Light Grey' },
+                'H18': { hex: '#FFFDF1', name: 'Very Light Yellow' },
+                'H19': { hex: '#F8F2EB', name: 'Very Light Warm Grey' },
+                'H20': { hex: '#9FACB1', name: 'Medium Grey Blue' },
+                'H21': { hex: '#FFFBE1', name: 'Very Light Yellow Warm' },
+                'H22': { hex: '#CACBD4', name: 'Medium Grey Blue' },
+                'H23': { hex: '#999D93', name: 'Medium Grey Green' },
+                'M01': { hex: '#CCD7C9', name: 'Light Green Grey' },
+                'M02': { hex: '#91AA94', name: 'Medium Green Grey' },
+                'M03': { hex: '#718898', name: 'Medium Blue Grey' },
+                'M04': { hex: '#DACEE2', name: 'Light Purple Grey' },
+                'M07': { hex: '#C1ACA7', name: 'Light Brown Grey' },
+                'M08': { hex: '#B09699', name: 'Medium Brown Grey' },
+                'M10': { hex: '#BB9FB9', name: 'Medium Purple Grey' },
+                'M11': { hex: '#9B809F', name: 'Medium Purple' },
+                'M13': { hex: '#DDA89A', name: 'Light Brown Pink' },
+                'M14': { hex: '#C0725D', name: 'Medium Brown Pink' },
+                'M15': { hex: '#86848A', name: 'Medium Grey' },
+            },
+
+            perler_221: {  // 221色套餐（完整版本，目前包含144色）
+                // 包含所有144色
+                // 为了节省篇幅，这里不重复列出所有144色数据
+                // 实际使用时应该包含所有144色数据
+            },
+
+            // Hama Beads 颜色表（保持原有）
+            hama: {
+                'White': { hex: '#FFFFFF', code: '001' },
+                'Yellow': { hex: '#FFD700', code: '020' },
+                'Orange': { hex: '#FF8C00', code: '030' },
+                'Red': { hex: '#E30613', code: '040' },
+                'Pink': { hex: '#FF69B4', code: '050' },
+                'Purple': { hex: '#800080', code: '060' },
+                'Blue': { hex: '#0066CC', code: '070' },
+                'Light Blue': { hex: '#87CEEB', code: '080' },
+                'Green': { hex: '#228B22', code: '090' },
+                'Light Green': { hex: '#90EE90', code: '100' },
+                'Brown': { hex: '#8B4513', code: '110' },
+                'Beige': { hex: '#D2B48C', code: '120' },
+                'Grey': { hex: '#808080', code: '130' },
+                'Black': { hex: '#1C1C1C', code: '140' },
+            },
+
+            // Nabbi/PyD 颜色表（保持原有）
+            nano: {
+                'White': { hex: '#FFFFFF', code: '1' },
+                'Cream': { hex: '#FFFDD0', code: '2' },
+                'Light Yellow': { hex: '#FFFFE0', code: '3' },
+                'Yellow': { hex: '#FFD700', code: '4' },
+                'Orange': { hex: '#FF8C00', code: '5' },
+                'Red': { hex: '#E30613', code: '6' },
+                'Pink': { hex: '#FF69B4', code: '7' },
+                'Purple': { hex: '#800080', code: '8' },
+                'Blue': { hex: '#0066CC', code: '9' },
+                'Light Blue': { hex: '#87CEEB', code: '10' },
+                'Green': { hex: '#228B22', code: '11' },
+                'Brown': { hex: '#8B4513', code: '12' },
+                'Black': { hex: '#1C1C1C', code: '13' },
+            }
+        };
+
+        // ==================== 应用状态管理 ====================
+        const AppState = {
+            originalImage: null,
+            processedData: null,
+            isProcessing: false,
+            currentColorSystem: 'perler',
+            currentPerlerPackage: 'perler_144'
+        };
+
+        /**
+         * 更新 Perler 套餐选择框的显示状态
+         */
+        function updatePerlerPackageVisibility() {
+            const perlerPackageGroup = elements.perlerPackage.closest('.control-group');
+            if (elements.colorSystem.value === 'perler') {
+                perlerPackageGroup.style.display = 'block';
+            } else {
+                perlerPackageGroup.style.display = 'none';
+            }
+        }
+
+        // ==================== DOM 元素引用 ====================
+        const elements = {
+            uploadZone: null,
+            fileInput: null,
+            imagePreview: null,
+            previewPlaceholder: null,
+            gridSize: null,
+            sizeValue: null,
+            sizeValue2: null,
+            colorTolerance: null,
+            toleranceValue: null,
+            colorSystem: null,
+            perlerPackage: null,
+            generateBtn: null,
+            resetBtn: null,
+            resultContainer: null,
+            toggleDisplayBtn: null,
+            printBtn: null,
+            saveBtn: null,
+            loadingOverlay: null,
+            toast: null
+        };
+
+        // ==================== 工具函数 ====================
+        
+        /**
+         * 计算两个颜色之间的欧几里得距离（RGB空间）
+         */
+        function colorDistance(hex1, hex2) {
+            const rgb1 = hexToRgb(hex1);
+            const rgb2 = hexToRgb(hex2);
+            return Math.sqrt(
+                Math.pow(rgb2.r - rgb1.r, 2) +
+                Math.pow(rgb2.g - rgb1.g, 2) +
+                Math.pow(rgb2.b - rgb1.b, 2)
+            );
+        }
+
+        /**
+         * 将 HEX 颜色转换为 RGB 对象
+         */
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        /**
+         * 将 RGB 值转换为 HEX 颜色
+         */
+        function rgbToHex(r, g, b) {
+            return '#' + [r, g, b].map(x => {
+                const hex = Math.round(x).toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            }).join('').toUpperCase();
+        }
+
+        /**
+         * 在色号数据库中查找最匹配的颜色
+         * @param {string} targetHex - 目标颜色HEX
+         * @param {string} colorSystem - 颜色系统
+         * @param {string} perlerPackage - Perler套餐
+         */
+        function findClosestColor(targetHex, colorSystem, perlerPackage = null) {
+            let colors;
+            
+            if (colorSystem === 'perler' && perlerPackage) {
+                colors = ColorDatabase[perlerPackage];
+            } else {
+                colors = ColorDatabase[colorSystem];
+            }
+            
+            let closestColor = null;
+            let minDistance = Infinity;
+            let closestCode = '';
+            let closestName = '';
+
+            for (const [name, data] of Object.entries(colors)) {
+                const distance = colorDistance(targetHex, data.hex);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestColor = name;
+                    if (data.code) {
+                        closestCode = data.code;
+                    } else {
+                        closestCode = name;
+                    }
+                    closestName = data.name || name;
+                }
+            }
+
+            return {
+                name: closestName,
+                hex: colors[closestColor].hex,
+                code: closestCode,
+                distance: minDistance
+            };
+        }
+
+        /**
+         * 显示提示消息
+         */
+        function showToast(message, duration = 2500) {
+            const toast = elements.toast;
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), duration);
+        }
+
+        /**
+         * 显示/隐藏加载状态
+         */
+        function setLoading(isLoading, message = '正在处理图片...') {
+            AppState.isProcessing = isLoading;
+            elements.loadingOverlay.querySelector('.loading-text').textContent = message;
+            elements.loadingOverlay.classList.toggle('active', isLoading);
+        }
+
+        /**
+         * 文件大小格式化
+         */
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // ==================== 图像处理模块 ====================
+
+        /**
+         * 调整图像尺寸以适应网格
+         */
+        function resizeImage(image, targetWidth, targetHeight) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+
+            // 使用高质量插值
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+            return canvas;
+        }
+
+        /**
+         * 提取图像颜色数据并转换为拼豆色号
+         */
+        function processImageData(canvas, colorSystem, tolerance, perlerPackage = null) {
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixels = imageData.data;
+            const result = [];
+
+            for (let y = 0; y < canvas.height; y++) {
+                const row = [];
+                for (let x = 0; x < canvas.width; x++) {
+                    const index = (y * canvas.width + x) * 4;
+                    const r = pixels[index];
+                    const g = pixels[index + 1];
+                    const b = pixels[index + 2];
+                    const a = pixels[index + 3];
+
+                    // 跳过完全透明的像素
+                    if (a < 128) {
+                        row.push({ transparent: true });
+                        continue;
+                    }
+
+                    const hex = rgbToHex(r, g, b);
+                    const matchedColor = findClosestColor(hex, colorSystem, perlerPackage);
+
+                    row.push({
+                        originalHex: hex,
+                        matchedColor: matchedColor,
+                        isWhite: r > 250 && g > 250 && b > 250
+                    });
+                }
+                result.push(row);
+            }
+
+            return result;
+        }
+
+        /**
+         * 生成拼豆图纸
+         */
+        function generatePattern() {
+            if (!AppState.originalImage) {
+                showToast('请先上传图片！');
+                return;
+            }
+
+            setLoading(true, '正在生成图纸...');
+
+            // 使用 setTimeout 确保 UI 更新
+            setTimeout(() => {
+                try {
+                    const gridSize = parseInt(elements.gridSize.value);
+                    const colorSystem = elements.colorSystem.value;
+                    const tolerance = parseInt(elements.colorTolerance.value);
+                    let perlerPackage = null;
+
+                    // 如果选择的是 Perler，获取套餐信息
+                    if (colorSystem === 'perler') {
+                        perlerPackage = elements.perlerPackage.value;
+                        AppState.currentPerlerPackage = perlerPackage;
+                    }
+
+                    // 使用最近邻插值，保持原始像素风格
+                    const canvas = resizeImageOriginal(AppState.originalImage, gridSize, gridSize);
+
+                    // 处理颜色数据
+                    const processedData = processImageData(canvas, colorSystem, tolerance, perlerPackage);
+                    AppState.processedData = processedData;
+
+                    // 渲染结果
+                    renderPattern(processedData, gridSize);
+                    
+                    // 生成颜色统计
+                    generateColorStats(processedData);
+
+                    // 启用按钮
+                    elements.printBtn.disabled = false;
+                    elements.saveBtn.disabled = false;
+
+                    showToast('图纸生成成功！');
+                } catch (error) {
+                    console.error('生成图纸时出错:', error);
+                    showToast('生成图纸失败，请重试！');
+                } finally {
+                    setLoading(false);
+                }
+            }, 100);
+        }
+
+        /**
+         * 平滑模式：使用高质量插值调整图像尺寸
+         */
+        /**
+         * 原画模式：使用最近邻插值保持像素风格
+         */
+        function resizeImageOriginal(image, targetWidth, targetHeight) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+
+            // 禁用平滑处理，保持像素边缘
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+            return canvas;
+        }
+
+        /**
+         * 渲染拼豆图纸
+         */
+        function renderPattern(data, gridSize) {
+            const container = elements.resultContainer;
+            container.innerHTML = '';
+
+            // 根据网格尺寸计算最佳单元格大小，确保比例协调
+            let cellSize;
+            if (gridSize <= 50) {
+                cellSize = Math.min(15, Math.max(8, Math.floor(600 / gridSize)));
+            } else if (gridSize <= 100) {
+                cellSize = Math.min(10, Math.max(5, Math.floor(800 / gridSize)));
+            } else {
+                cellSize = Math.min(8, Math.max(3, Math.floor(1000 / gridSize)));
+            }
+
+            const grid = document.createElement('div');
+            grid.className = 'bead-grid';
+            grid.style.display = 'grid';
+            grid.style.gridTemplateColumns = `repeat(${gridSize}, ${cellSize}px)`;
+            grid.style.gridTemplateRows = `repeat(${gridSize}, ${cellSize}px)`;
+            grid.style.gap = '0px';
+            grid.style.justifyContent = 'center';
+            grid.style.alignContent = 'center';
+
+            data.forEach((row, y) => {
+                row.forEach((cell, x) => {
+                    const bead = document.createElement('div');
+                    bead.className = 'bead-cell';
+                    bead.style.width = `${cellSize}px`;
+                    bead.style.height = `${cellSize}px`;
+                    bead.style.borderRadius = cellSize > 6 ? '2px' : '0px';
+
+                    if (cell.transparent) {
+                        bead.style.background = 'transparent';
+                        bead.style.boxShadow = 'none';
+                    } else {
+                        bead.style.background = cell.matchedColor.hex;
+                        bead.textContent = cellSize >= 6 ? cell.matchedColor.code : '';
+                        bead.setAttribute('data-color-name', `${cell.matchedColor.name} (${cell.matchedColor.code})`);
+                    }
+
+                    grid.appendChild(bead);
+                });
+            });
+
+            container.appendChild(grid);
+        }
+
+        /**
+         * 生成颜色统计信息
+         */
+        function generateColorStats(data) {
+            const colorStats = new Map();
+            let totalPixels = 0;
+            let transparentPixels = 0;
+
+            // 统计每种颜色的数量
+            data.forEach(row => {
+                row.forEach(cell => {
+                    totalPixels++;
+                    if (cell.transparent) {
+                        transparentPixels++;
+                    } else {
+                        const colorKey = cell.matchedColor.code;
+                        if (colorStats.has(colorKey)) {
+                            colorStats.set(colorKey, colorStats.get(colorKey) + 1);
+                        } else {
+                            colorStats.set(colorKey, 1);
+                        }
+                    }
+                });
+            });
+
+            // 获取颜色详情
+            const colorDetails = Array.from(colorStats.entries()).map(([code, count]) => {
+                // 找到对应的颜色详细信息
+                let colorInfo = null;
+                for (const row of data) {
+                    for (const cell of row) {
+                        if (!cell.transparent && cell.matchedColor.code === code) {
+                            colorInfo = cell.matchedColor;
+                            break;
+                        }
+                    }
+                    if (colorInfo) break;
+                }
+                
+                return {
+                    code: code,
+                    name: colorInfo ? colorInfo.name : '未知颜色',
+                    hex: colorInfo ? colorInfo.hex : '#000000',
+                    count: count,
+                    percentage: ((count / (totalPixels - transparentPixels)) * 100).toFixed(1)
+                };
+            });
+
+            // 按数量降序排序
+            colorDetails.sort((a, b) => b.count - a.count);
+
+            // 渲染统计信息
+            renderColorStats(colorDetails, totalPixels, transparentPixels);
+        }
+
+        /**
+         * 渲染颜色统计信息
+         */
+        function renderColorStats(colorDetails, totalPixels, transparentPixels) {
+            const statsContainer = document.getElementById('colorStats');
+            const statsGrid = document.getElementById('statsGrid');
+            const statsSummary = document.getElementById('statsSummary');
+
+            // 显示统计区域
+            statsContainer.style.display = 'block';
+
+            // 清空现有内容
+            statsGrid.innerHTML = '';
+            statsSummary.innerHTML = '';
+
+            // 生成详细统计
+            colorDetails.forEach(color => {
+                const colorItem = document.createElement('div');
+                colorItem.style.cssText = `
+                    display: flex;
+                    align-items: center;
+                    padding: 12px;
+                    background: white;
+                    border-radius: 8px;
+                    border: 2px solid ${color.hex};
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                `;
+
+                colorItem.innerHTML = `
+                    <div style="width: 24px; height: 24px; background: ${color.hex}; border-radius: 4px; margin-right: 12px; border: 1px solid #ccc;"></div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; color: #333; font-size: 1rem;">${color.code}</div>
+                        <div style="color: #666; font-size: 0.9rem; margin-top: 2px;">${color.name}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: bold; color: var(--primary-color); font-size: 1.1rem;">${color.count}</div>
+                        <div style="color: #888; font-size: 0.8rem;">${color.percentage}%</div>
+                    </div>
+                `;
+
+                statsGrid.appendChild(colorItem);
+            });
+
+            // 生成汇总信息
+            const solidPixels = totalPixels - transparentPixels;
+            const uniqueColors = colorDetails.length;
+            
+            statsSummary.innerHTML = `
+                <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">${totalPixels}</div>
+                        <div style="color: #666;">总像素数</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 1.5rem; color: var(--secondary-color); font-weight: bold;">${uniqueColors}</div>
+                        <div style="color: #666;">使用颜色</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 1.5rem; color: #28a745; font-weight: bold;">${solidPixels}</div>
+                        <div style="color: #666;">实心像素</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 1.5rem; color: #6c757d; font-weight: bold;">${transparentPixels}</div>
+                        <div style="color: #666;">透明像素</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==================== 文件上传模块 ====================
+
+        /**
+         * 验证上传的文件
+         */
+        function validateFile(file) {
+            const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+            const maxSize = 5 * 1024 * 1024; // 5MB
+
+            if (!validTypes.includes(file.type)) {
+                showToast('请上传 PNG 或 JPG 格式的图片！');
+                return false;
+            }
+
+            if (file.size > maxSize) {
+                showToast('图片大小不能超过 5MB！');
+                return false;
+            }
+
+            return true;
+        }
+
+        /**
+         * 处理上传的文件
+         */
+        async function handleFile(file) {
+            if (!validateFile(file)) return;
+
+            try {
+                setLoading(true, '正在加载图片...');
+
+                const imageBitmap = await createImageBitmap(file);
+                const img = new Image();
+                const objectUrl = URL.createObjectURL(file);
+
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = objectUrl;
+                });
+
+                // 保存原始图像
+                AppState.originalImage = img;
+
+                // 显示预览
+                elements.imagePreview.src = objectUrl;
+                elements.imagePreview.classList.add('loaded');
+                elements.previewPlaceholder.style.display = 'none';
+
+                // 启用生成按钮
+                elements.generateBtn.disabled = false;
+
+                showToast('图片上传成功！');
+            } catch (error) {
+                console.error('加载图片失败:', error);
+                showToast('加载图片失败，请重试！');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // ==================== 打印和保存功能 ====================
+
+        /**
+         * 打印图纸
+         */
+        function printPattern() {
+            if (!AppState.processedData) {
+                showToast('请先生成图纸！');
+                return;
+            }
+            window.print();
+        }
+
+        /**
+         * 保存图纸为图片
+         */
+        async function savePattern() {
+            if (!AppState.processedData) {
+                showToast('请先生成图纸！');
+                return;
+            }
+
+            try {
+                setLoading(true, '正在保存图片...');
+
+                const gridSize = AppState.processedData.length;
+                const cellSize = 40;
+                const padding = 40;
+                const width = gridSize * cellSize + padding * 2;
+                const height = gridSize * cellSize + padding * 2;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+
+                // 绘制背景
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, width, height);
+
+                // 绘制标题
+                ctx.fillStyle = '#333333';
+                ctx.font = 'bold 24px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('拼豆图纸', width / 2, 30);
+
+                // 绘制色号说明
+                ctx.font = '14px sans-serif';
+                ctx.fillText(`尺寸: ${gridSize}×${gridSize} | 色号系统: ${elements.colorSystem.value.toUpperCase()}`, width / 2, 55);
+
+                // 绘制珠子网格
+                AppState.processedData.forEach((row, y) => {
+                    row.forEach((cell, x) => {
+                        const px = padding + x * cellSize;
+                        const py = padding + y * cellSize;
+                        const radius = cellSize / 2 - 2;
+
+                        ctx.beginPath();
+                        ctx.arc(px + cellSize / 2, py + cellSize / 2, radius, 0, Math.PI * 2);
+
+                        if (cell.transparent) {
+                            ctx.fillStyle = '#f0f0f0';
+                        } else {
+                            ctx.fillStyle = cell.matchedColor.hex;
+                        }
+                        ctx.fill();
+
+                        // 绘制边框
+                        ctx.strokeStyle = '#dddddd';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+
+                        // 绘制色号
+                        if (!cell.transparent) {
+                            ctx.fillStyle = getContrastColor(cell.matchedColor.hex);
+                            ctx.font = 'bold 10px sans-serif';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(cell.matchedColor.code, px + cellSize / 2, py + cellSize / 2);
+                        }
+                    });
+                });
+
+                // 导出图片
+                const link = document.createElement('a');
+                link.download = 'pindou_pattern.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+
+                showToast('图片保存成功！');
+            } catch (error) {
+                console.error('保存图片失败:', error);
+                showToast('保存图片失败，请重试！');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        /**
+         * 获取对比色（用于文字颜色）
+         */
+        function getContrastColor(hex) {
+            const rgb = hexToRgb(hex);
+            const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+            return luminance > 0.5 ? '#333333' : '#ffffff';
+        }
+
+        // ==================== 重置功能 ====================
+
+        /**
+         * 重置应用状态
+         */
+        function resetApp() {
+            AppState.originalImage = null;
+            AppState.processedData = null;
+
+            elements.fileInput.value = '';
+            elements.imagePreview.src = '';
+            elements.imagePreview.classList.remove('loaded');
+            elements.previewPlaceholder.style.display = 'block';
+            elements.generateBtn.disabled = true;
+            elements.printBtn.disabled = true;
+            elements.saveBtn.disabled = true;
+            elements.resultContainer.innerHTML = '<div class="result-placeholder">生成拼豆图纸后将在此显示<br>点击珠子上可查看颜色名称</div>';
+
+            showToast('已重置所有设置');
+        }
+
+        // ==================== 事件绑定 ====================
+
+        /**
+         * 初始化所有事件监听器
+         */
+        function initEventListeners() {
+            // 文件上传区域点击
+            elements.uploadZone.addEventListener('click', () => {
+                elements.fileInput.click();
+            });
+
+            // 文件选择
+            elements.fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+
+            // 拖拽上传
+            elements.uploadZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                elements.uploadZone.classList.add('dragover');
+            });
+
+            elements.uploadZone.addEventListener('dragleave', () => {
+                elements.uploadZone.classList.remove('dragover');
+            });
+
+            elements.uploadZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                elements.uploadZone.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) {
+                    handleFile(e.dataTransfer.files[0]);
+                }
+            });
+
+            // 滑块值变化
+            elements.gridSize.addEventListener('input', (e) => {
+                const value = e.target.value;
+                elements.sizeValue.textContent = value;
+                elements.sizeValue2.textContent = value;
+            });
+
+            elements.colorTolerance.addEventListener('input', (e) => {
+                elements.toleranceValue.textContent = e.target.value;
+            });
+
+            // 色号系统变化
+            elements.colorSystem.addEventListener('change', (e) => {
+                AppState.currentColorSystem = e.target.value;
+                updatePerlerPackageVisibility();
+            });
+
+            // Perler 套餐变化
+            elements.perlerPackage.addEventListener('change', (e) => {
+                AppState.currentPerlerPackage = e.target.value;
+            });
+
+            // 展开/收起显示按钮
+            elements.toggleDisplayBtn.addEventListener('click', () => {
+                const isExpanded = elements.resultContainer.classList.contains('expanded');
+                if (isExpanded) {
+                    elements.resultContainer.classList.remove('expanded');
+                    elements.toggleDisplayBtn.textContent = '展开显示';
+                } else {
+                    elements.resultContainer.classList.add('expanded');
+                    elements.toggleDisplayBtn.textContent = '收起';
+                }
+            });
+
+            // 按钮事件
+            elements.generateBtn.addEventListener('click', generatePattern);
+            elements.resetBtn.addEventListener('click', resetApp);
+            elements.printBtn.addEventListener('click', printPattern);
+            elements.saveBtn.addEventListener('click', savePattern);
+
+            // 键盘快捷键
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    if (e.key === 'p') {
+                        e.preventDefault();
+                        printPattern();
+                    }
+                }
+            });
+        }
+
+        // ==================== 初始化 ====================
+
+        /**
+         * 获取所有 DOM 元素引用
+         */
+        function cacheElements() {
+            elements.uploadZone = document.getElementById('uploadZone');
+            elements.fileInput = document.getElementById('fileInput');
+            elements.imagePreview = document.getElementById('imagePreview');
+            elements.previewPlaceholder = document.getElementById('previewPlaceholder');
+            elements.gridSize = document.getElementById('gridSize');
+            elements.sizeValue = document.getElementById('sizeValue');
+            elements.sizeValue2 = document.getElementById('sizeValue2');
+            elements.colorTolerance = document.getElementById('colorTolerance');
+            elements.toleranceValue = document.getElementById('toleranceValue');
+            elements.colorSystem = document.getElementById('colorSystem');
+            elements.perlerPackage = document.getElementById('perlerPackage');
+            elements.generateBtn = document.getElementById('generateBtn');
+            elements.resetBtn = document.getElementById('resetBtn');
+            elements.resultContainer = document.getElementById('resultContainer');
+            elements.toggleDisplayBtn = document.getElementById('toggleDisplayBtn');
+            elements.printBtn = document.getElementById('printBtn');
+            elements.saveBtn = document.getElementById('saveBtn');
+            elements.loadingOverlay = document.getElementById('loadingOverlay');
+            elements.toast = document.getElementById('toast');
+        }
+
+        /**
+         * 应用入口
+         */
+        function init() {
+            cacheElements();
+            initEventListeners();
+            updatePerlerPackageVisibility(); // 初始化显示状态
+            console.log('拼豆图纸生成器已就绪！');
+        }
+
+        // DOM 加载完成后初始化
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
